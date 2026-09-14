@@ -1,24 +1,19 @@
 /* ============================================================
    LeetSync AI — Content Script (LeetCode problem pages)
    ============================================================ */
-
 (() => {
   if (window.__leetsyncInjected) return;
   window.__leetsyncInjected = true;
-
   let submissionInProgress = false;
-  let lastSeenResult = null;
+  let lastSeenResultText = null;
   let currentSlug = null;
   let currentMeta = null;
   const metaCache = {};
-
   /* ---------------- Utils ---------------- */
-
   const slugFromUrl = () => {
     const m = location.pathname.match(/problems\/([^/]+)/);
     return m ? m[1] : null;
   };
-
   function send(type, payload) {
     return new Promise((resolve) => {
       try {
@@ -29,13 +24,11 @@
       } catch (e) { resolve({ ok: false, error: e.message }); }
     });
   }
-
   function esc(s) {
     return String(s || "").replace(/[&<>"']/g, c => ({
       "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"
     }[c]));
   }
-
   function toast(text, ok = true) {
     const el = document.createElement("div");
     el.textContent = (ok ? "✅ " : "⚠️ ") + text;
@@ -56,9 +49,7 @@
       setTimeout(() => el.remove(), 250);
     }, 2600);
   }
-
   /* ---------------- Problem metadata ---------------- */
-
   async function fetchMeta(slug) {
     if (metaCache[slug]) return metaCache[slug];
     const query = `
@@ -96,13 +87,11 @@
       return null;
     }
   }
-
   function stripHtml(html) {
     const d = document.createElement("div");
     d.innerHTML = html;
     return (d.textContent || "").replace(/\s+\n/g, "\n").trim();
   }
-
   async function getCurrentMeta() {
     const slug = slugFromUrl();
     if (!slug) return null;
@@ -110,38 +99,41 @@
     currentMeta = await fetchMeta(slug);
     return currentMeta;
   }
-
   /* ---------------- Accepted detection ---------------- */
-
+  function onAttemptStart() {
+    submissionInProgress = true;
+    const el = document.querySelector('[data-e2e-locator="submission-result"]');
+    lastSeenResultText = el ? (el.innerText || "").trim() : null;
+  }
   document.addEventListener("click", (e) => {
-    const btn = e.target.closest('[data-e2e-locator="console-submit-button"]');
-    if (btn) submissionInProgress = true;
+    if (e.target.closest('[data-e2e-locator="console-submit-button"]')) onAttemptStart();
   }, true);
-
   document.addEventListener("keydown", (e) => {
-    if ((e.ctrlKey || e.metaKey) && e.key === "Enter") submissionInProgress = true;
+    if ((e.ctrlKey || e.metaKey) && e.key === "Enter") onAttemptStart();
   }, true);
-
   const observer = new MutationObserver(async () => {
     if (!submissionInProgress) return;
     const el = document.querySelector('[data-e2e-locator="submission-result"]');
-    if (!el || el === lastSeenResult) return;
-    lastSeenResult = el;
-
+    if (!el) return;
     const status = (el.innerText || "").trim();
-    if (!/^accepted$/i.test(status)) return;
-
+    // Ignore the stale "Accepted" left over from the previous submission.
+    if (status === lastSeenResultText) return;
+    // Remember intermediate states (Pending, Wrong Answer, etc.) so we don't loop on them.
+    if (!/^accepted$/i.test(status)) {
+      lastSeenResultText = status;
+      return;
+    }
+    // Real accepted transition. Process it.
+    lastSeenResultText = status;
     submissionInProgress = false;
     const slug = slugFromUrl();
     if (!slug) return;
-
     const meta = await fetchMeta(slug);
     const codeInfo = await send("EXTRACT_CODE_REQUEST", { slug });
     if (!codeInfo || !codeInfo.code) {
       toast("Could not read code from editor.", false);
       return;
     }
-
     toast("Syncing to GitHub…");
     const result = await send("SUBMISSION_ACCEPTED", {
       slug,
@@ -152,7 +144,6 @@
         slug, difficulty: "Unknown", description: "", topics: []
       }
     });
-
     if (result?.ok) {
       if (result.skipped) toast("Saved locally (auto-sync off).");
       else toast("Synced: " + (result.path || slug));
@@ -160,29 +151,23 @@
       toast("Sync failed: " + (result?.error || "unknown"), false);
     }
   });
-
   observer.observe(document.body, { childList: true, subtree: true });
-
   setInterval(() => {
     const s = slugFromUrl();
     if (s && s !== currentSlug) {
       currentSlug = s;
       currentMeta = null;
       submissionInProgress = false;
-      lastSeenResult = null;
+      lastSeenResultText = null;
     }
   }, 800);
-
   /* ---------------- Panel ---------------- */
-
   const BTN_ID = "leetsync-ai-btn";
   const PANEL_ID = "leetsync-ai-panel";
   const PLAYER_ID = "leetsync-player";
   const STYLE_ID = "leetsync-ai-styles";
-
   const activeTab = { current: "hint" };
   const tabContent = { hint: null, compare: null, slow: null, videos: null };
-
   const CSS = `
     #${BTN_ID} {
       position: fixed; right: 20px; bottom: 20px; z-index: 2147483646;
@@ -195,7 +180,6 @@
       transition: transform 0.15s ease;
     }
     #${BTN_ID}:hover { transform: scale(1.06); }
-
     #${PANEL_ID} {
       position: fixed; right: 20px; bottom: 84px; z-index: 2147483645;
       width: 400px; max-height: 620px; background: #ffffff;
@@ -248,7 +232,6 @@
       animation: lsSpin 0.8s linear infinite;
     }
     @keyframes lsSpin { to { transform: rotate(360deg); } }
-
     #${PANEL_ID} .ls-footer {
       border-top: 1px solid #e5e7eb; padding: 10px 12px;
       display: flex; gap: 8px; background: #f9fafb;
@@ -262,7 +245,6 @@
     #${PANEL_ID} .ls-primary { background: #2563eb; color: #fff; }
     #${PANEL_ID} .ls-secondary { background: #e5e7eb; color: #111827; }
     #${PANEL_ID} .ls-footer.hidden { display: none; }
-
     /* Video cards */
     .ls-video {
       display: flex; gap: 10px; padding: 6px 0;
@@ -306,7 +288,6 @@
       font-size: 11px; color: #6b7280; margin-top: 3px;
       display: flex; gap: 6px; flex-wrap: wrap;
     }
-
     /* Draggable player */
     #${PLAYER_ID} {
       position: fixed; z-index: 2147483647;
@@ -343,7 +324,6 @@
       width: 100%; aspect-ratio: 16/9; background: #000;
     }
     #${PLAYER_ID} iframe { width: 100%; height: 100%; display: block; border: 0; }
-
     /* Dark mode */
     html.dark #${PANEL_ID} { background: #1f2937; color: #f3f4f6; border-color: #374151; }
     html.dark #${PANEL_ID} .ls-tabs { background: #111827; border-color: #374151; }
@@ -357,7 +337,6 @@
     html.dark .ls-vstats { color: #9ca3af; }
     html.dark .ls-vsub { color: #9ca3af; }
   `;
-
   function ensureStyles() {
     if (document.getElementById(STYLE_ID)) return;
     const s = document.createElement("style");
@@ -365,7 +344,6 @@
     s.textContent = CSS;
     document.head.appendChild(s);
   }
-
   function buildButton() {
     if (document.getElementById(BTN_ID)) return;
     ensureStyles();
@@ -376,13 +354,11 @@
     btn.addEventListener("click", togglePanel);
     document.body.appendChild(btn);
   }
-
   function togglePanel() {
     const existing = document.getElementById(PANEL_ID);
     if (existing) { existing.remove(); return; }
     buildPanel();
   }
-
   function buildPanel() {
     const panel = document.createElement("div");
     panel.id = PANEL_ID;
@@ -404,29 +380,23 @@
       </div>
     `;
     document.body.appendChild(panel);
-
     panel.querySelector("#ls-close").addEventListener("click", () => panel.remove());
     panel.querySelectorAll(".ls-tab").forEach(tab => {
       tab.addEventListener("click", () => switchTab(tab.dataset.tab));
     });
     panel.querySelector("#ls-action").addEventListener("click", onActionClick);
     panel.querySelector("#ls-clear").addEventListener("click", clearCurrent);
-
     switchTab("hint");
   }
-
   function switchTab(name) {
     activeTab.current = name;
     const panel = document.getElementById(PANEL_ID);
     if (!panel) return;
-
     panel.querySelectorAll(".ls-tab").forEach(t =>
       t.classList.toggle("active", t.dataset.tab === name)
     );
-
     const actionBtn = panel.querySelector("#ls-action");
     const footer = panel.querySelector("#ls-footer");
-
     if (name === "videos") {
       footer.classList.add("hidden");
       if (!tabContent.videos) loadVideos();
@@ -434,14 +404,11 @@
       return;
     }
     footer.classList.remove("hidden");
-
     if (name === "hint") actionBtn.textContent = "Get Hint";
     if (name === "compare") actionBtn.textContent = "Compare to Optimal";
     if (name === "slow") actionBtn.textContent = "Why Is It Slow?";
-
     renderBody(tabContent[name]);
   }
-
   function renderBody(html) {
     const body = document.getElementById("ls-body");
     if (!body) return;
@@ -457,7 +424,6 @@
     }
     body.innerHTML = html;
   }
-
   function clearCurrent() {
     tabContent[activeTab.current] = null;
     if (activeTab.current === "videos") {
@@ -467,34 +433,26 @@
     }
     renderBody(null);
   }
-
   function setLoading(text) {
     const body = document.getElementById("ls-body");
     if (body) body.innerHTML = `<div class="ls-loading"><div class="ls-spinner"></div>${esc(text)}</div>`;
   }
-
   function setError(text) {
     const body = document.getElementById("ls-body");
     if (body) body.innerHTML = `<div style="color:#dc2626;">⚠️ ${esc(text)}</div>`;
   }
-
   function setPre(text) {
     const body = document.getElementById("ls-body");
     if (body) body.innerHTML = `<pre>${esc(text)}</pre>`;
   }
-
   /* ---------------- AI Actions ---------------- */
-
   async function onActionClick() {
     const tab = activeTab.current;
     if (tab === "videos") return;
-
     const meta = await getCurrentMeta();
     if (!meta) { setError("Could not load problem info."); return; }
-
     const codeInfo = await send("EXTRACT_CODE_REQUEST", { slug: meta.slug });
     if (!codeInfo || !codeInfo.code) { setError("Could not read your code from the editor."); return; }
-
     const payload = {
       title: meta.title,
       difficulty: meta.difficulty,
@@ -502,17 +460,14 @@
       code: codeInfo.code,
       language: codeInfo.language
     };
-
     const labels = {
       hint: "Thinking of a hint…",
       compare: "Comparing to optimal…",
       slow: "Analyzing performance…"
     };
     setLoading(labels[tab] || "Thinking…");
-
     const msgType = { hint: "AI_HINT", compare: "AI_COMPARE", slow: "AI_SLOW" }[tab];
     const res = await send(msgType, payload);
-
     if (!res || !res.ok) {
       setError("AI error: " + (res?.error || "unknown"));
       tabContent[tab] = `<div style="color:#dc2626;">⚠️ ${esc(res?.error || "unknown")}</div>`;
@@ -521,14 +476,11 @@
     setPre(res.text || "(empty response)");
     tabContent[tab] = document.getElementById("ls-body").innerHTML;
   }
-
   /* ---------------- Videos ---------------- */
-
   async function loadVideos() {
     setLoading("Loading video solutions…");
     const meta = await getCurrentMeta();
     if (!meta) { setError("Could not load problem info."); return; }
-
     const res = await send("FETCH_VIDEOS", { number: meta.number, title: meta.title });
     if (!res || !res.ok) {
       const msg = res?.error || "unknown";
@@ -544,7 +496,6 @@
     }
     renderVideos(res.videos);
   }
-
   function renderVideos(videos) {
     const body = document.getElementById("ls-body");
     if (!body) return;
@@ -552,7 +503,6 @@
     for (const v of videos) body.appendChild(videoCard(v));
     tabContent.videos = body.innerHTML;
   }
-
   function fmtViews(n) {
     if (!n) return "";
     if (n >= 1e6) return (n / 1e6).toFixed(1).replace(/\.0$/, "") + "M views";
@@ -565,16 +515,13 @@
     if (n >= 1e3) return (n / 1e3).toFixed(1) + "K";
     return String(n);
   }
-
   function videoCard(v) {
     const wrap = document.createElement("div");
     wrap.className = "ls-video";
-
     const thumb = document.createElement("div");
     thumb.className = "ls-thumb";
     const thumbUrl = v.thumbnail || `https://i.ytimg.com/vi/${v.id}/mqdefault.jpg`;
     thumb.style.backgroundImage = `url(${thumbUrl})`;
-
     if (v.duration) {
       const dur = document.createElement("span");
       dur.className = "ls-dur";
@@ -585,7 +532,6 @@
     play.className = "ls-play";
     play.textContent = "▶";
     thumb.appendChild(play);
-
     const meta = document.createElement("div");
     meta.className = "ls-vmeta";
     meta.innerHTML = `
@@ -596,19 +542,15 @@
         ${v.likes ? `<span>👍 ${esc(fmtLikes(v.likes))}</span>` : ""}
       </div>
     `;
-
     thumb.addEventListener("click", () => openPlayer(v));
     wrap.appendChild(thumb);
     wrap.appendChild(meta);
     return wrap;
   }
-
   /* ---------------- Draggable player ---------------- */
-
   function openPlayer(video) {
     const existing = document.getElementById(PLAYER_ID);
     if (existing) existing.remove();
-
     const player = document.createElement("div");
     player.id = PLAYER_ID;
     player.innerHTML = `
@@ -629,13 +571,10 @@
       </div>
     `;
     document.body.appendChild(player);
-
     const w = 480, h = 300;
     player.style.left = Math.max(20, (window.innerWidth - w) / 2) + "px";
     player.style.top = Math.max(20, (window.innerHeight - h) / 2) + "px";
-
     makeDraggable(player);
-
     player.querySelector('[data-act="close"]').addEventListener("click", () => player.remove());
     player.querySelector('[data-act="min"]').addEventListener("click", (e) => {
       const body = player.querySelector(".ls-player-body");
@@ -645,14 +584,11 @@
       e.target.textContent = hidden ? "—" : "+";
     });
   }
-
   function makeDraggable(el) {
     const header = el.querySelector(".ls-player-header");
     let dragging = false;
     let offX = 0, offY = 0;
-
     header.style.cursor = "grab";
-
     const start = (clientX, clientY) => {
       const r = el.getBoundingClientRect();
       offX = clientX - r.left;
@@ -676,7 +612,6 @@
       header.style.cursor = "grab";
       document.body.style.userSelect = "";
     };
-
     header.addEventListener("mousedown", (e) => {
       if (e.target.closest("button")) return;
       start(e.clientX, e.clientY);
@@ -684,7 +619,6 @@
     });
     document.addEventListener("mousemove", (e) => move(e.clientX, e.clientY));
     document.addEventListener("mouseup", end);
-
     header.addEventListener("touchstart", (e) => {
       if (e.target.closest("button")) return;
       const t = e.touches[0];
@@ -697,9 +631,7 @@
     }, { passive: true });
     document.addEventListener("touchend", end);
   }
-
   /* ---------------- Boot & SPA nav ---------------- */
-
   function ensurePanelExists() {
     if (!/leetcode\.com\/problems\//.test(location.href)) {
       const b = document.getElementById(BTN_ID);
@@ -712,10 +644,8 @@
     }
     if (!document.getElementById(BTN_ID)) buildButton();
   }
-
   if (document.body) ensurePanelExists();
   else document.addEventListener("DOMContentLoaded", ensurePanelExists);
-
   let lastHref = location.href;
   setInterval(() => {
     if (location.href !== lastHref) {
