@@ -1,0 +1,177 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=380, initial-scale=1.0" />
+    <title>LeetSync AI</title>
+    <link rel="stylesheet" href="popup.css" />
+  </head>
+  <body>
+    <header class="topbar">
+      <div class="brand">
+        <img src="../media/icon.png" alt="" class="logo" />
+        <div>
+          <div class="brand-title">LeetSync AI</div>
+          <div class="brand-sub">LeetCode → GitHub</div>
+        </div>
+      </div>
+      <button id="closeBtn" class="icon-btn" title="Close">✕</button>
+    </header>
+
+    <!-- WELCOME -->
+    <section id="screen-welcome" class="screen">
+      <div class="hero">
+        <img src="../media/icon.png" alt="" class="hero-logo" />
+        <h1>Welcome</h1>
+        <p class="muted">
+          Sync accepted LeetCode solutions to GitHub, with AI hints,
+          comparisons, video solutions, and a self-updating README.
+        </p>
+      </div>
+      <button id="startSetup" class="btn primary">Get Started</button>
+    </section>
+
+    <!-- SETUP -->
+    <section id="screen-setup" class="screen hidden">
+      <h2>Backend URL</h2>
+      <p class="muted small">
+        Your own deployment of the LeetSync AI backend. This handles the
+        DeepSeek proxy and YouTube search.
+      </p>
+      <input
+        id="backendBase"
+        type="text"
+        placeholder="https://your-backend.onrender.com"
+        autocomplete="off" />
+      <div class="helper">
+        <a href="https://github.com/" target="_blank">Deploy your own →</a>
+        <span class="dot">·</span>
+        <button class="linkbtn" id="pingBackend">Test connection</button>
+      </div>
+      <div id="backendStatus" class="status hidden"></div>
+
+      <hr />
+
+      <h2>Connect GitHub</h2>
+      <p class="muted small">
+        Fine-grained PAT with <b>Contents: Read and write</b> on a single
+        repository.
+      </p>
+      <input
+        id="ghOwner"
+        type="text"
+        placeholder="GitHub username"
+        autocomplete="off" />
+      <input
+        id="ghRepo"
+        type="text"
+        placeholder="Repository name"
+        autocomplete="off" />
+      <input
+        id="ghToken"
+        type="password"
+        placeholder="Fine-grained access token"
+        autocomplete="off" />
+      <div class="helper">
+        <a
+          href="https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/managing-your-personal-access-tokens#fine-grained-personal-access-tokens"
+          target="_blank"
+          >How to create a token →</a
+        >
+      </div>
+      <div id="setupError" class="error hidden"></div>
+      <button id="saveGithub" class="btn primary">Connect Repository</button>
+
+      <hr />
+
+      <h2>Connect DeepSeek (optional)</h2>
+      <p class="muted small">
+        Needed for AI hints, comparisons, and README explanations. Open
+        <a href="https://chat.deepseek.com" target="_blank">chat.deepseek.com</a
+        >, DevTools → Application → Local Storage → copy
+        <code>userToken.value</code>; Application → Cookies → copy
+        <code>smidV2</code>.
+      </p>
+      <input
+        id="dsToken"
+        type="password"
+        placeholder="userToken"
+        autocomplete="off" />
+      <input
+        id="dsSmid"
+        type="password"
+        placeholder="smidV2 cookie value"
+        autocomplete="off" />
+      <div class="row">
+        <button id="saveDS" class="btn secondary">Save DeepSeek</button>
+        <button id="pingDS" class="btn ghost">Test</button>
+      </div>
+      <div id="dsStatus" class="status hidden"></div>
+
+      <button id="backToWelcome" class="btn ghost full">Back</button>
+    </section>
+
+    <!-- DASHBOARD -->
+    <section id="screen-dash" class="screen hidden">
+      <div class="repo-row">
+        <div>
+          <div class="muted small">Connected repository</div>
+          <div id="repoLabel" class="repo-label">—</div>
+        </div>
+        <button id="editCfg" class="icon-btn" title="Edit settings">⚙️</button>
+      </div>
+
+      <div class="stats-grid">
+        <div class="stat">
+          <div class="num" id="statSolved">0</div>
+          <div class="lbl">Solved</div>
+        </div>
+        <div class="stat">
+          <div class="num" id="statEasy">0</div>
+          <div class="lbl">Easy</div>
+        </div>
+        <div class="stat">
+          <div class="num" id="statMedium">0</div>
+          <div class="lbl">Medium</div>
+        </div>
+        <div class="stat">
+          <div class="num" id="statHard">0</div>
+          <div class="lbl">Hard</div>
+        </div>
+        <div class="stat wide">
+          <div class="num" id="statStreak">0</div>
+          <div class="lbl">Day streak</div>
+        </div>
+      </div>
+
+      <div class="toggles">
+        <label class="toggle-row">
+          <span>Auto Sync</span>
+          <input id="toggleAutoSync" type="checkbox" />
+        </label>
+        <label class="toggle-row">
+          <span>AI Hints & README</span>
+          <input id="toggleAI" type="checkbox" />
+        </label>
+      </div>
+
+      <div id="statusBox" class="status hidden"></div>
+      <button id="manualSync" class="btn primary hidden">
+        Sync Last Submission
+      </button>
+
+      <h3 class="section-title">Recent</h3>
+      <div id="historyList" class="history">
+        <div class="muted small">No submissions yet.</div>
+      </div>
+
+      <button id="clearHistory" class="btn ghost full">Clear History</button>
+    </section>
+
+    <footer class="footer">
+      <span class="muted small">LeetSync AI v1.1.0</span>
+    </footer>
+
+    <script src="popup.js"></script>
+  </body>
+</html>
