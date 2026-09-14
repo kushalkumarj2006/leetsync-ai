@@ -1,0 +1,61 @@
+{
+    "manifest_version": 3,
+    "name": "LeetSync AI",
+    "version": "1.1.0",
+    "description": "Sync accepted LeetCode solutions to GitHub with DeepSeek AI hints, comparisons, video solutions, and auto-generated READMEs.",
+    "icons": {
+        "16": "media/icon.png",
+        "48": "media/icon.png",
+        "128": "media/icon.png"
+    },
+    "action": {
+        "default_popup": "popup/popup.html",
+        "default_icon": {
+            "16": "media/icon.png",
+            "48": "media/icon.png",
+            "128": "media/icon.png"
+        },
+        "default_title": "LeetSync AI"
+    },
+    "background": {
+        "service_worker": "background/service-worker.js"
+    },
+    "content_scripts": [
+        {
+            "matches": [
+                "https://leetcode.com/problems/*"
+            ],
+            "js": [
+                "content/leetcode.js"
+            ],
+            "run_at": "document_idle"
+        }
+    ],
+    "permissions": [
+        "storage",
+        "scripting",
+        "notifications",
+        "offscreen"
+    ],
+    "host_permissions": [
+        "https://leetcode.com/*",
+        "https://api.github.com/*",
+        "https://chat.deepseek.com/*",
+        "https://i.ytimg.com/*",
+        "https://www.youtube-nocookie.com/*",
+        "https://*.onrender.com/*"
+    ],
+    "content_security_policy": {
+        "extension_pages": "script-src 'self' 'wasm-unsafe-eval'; object-src 'self'"
+    },
+    "web_accessible_resources": [
+        {
+            "resources": [
+                "offscreen/pow/*"
+            ],
+            "matches": [
+                "<all_urls>"
+            ]
+        }
+    ]
+}
